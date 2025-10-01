@@ -1,32 +1,44 @@
+Got it 👍 — here’s a **full drop-in replacement README.md** you can use directly in your GitHub repo alongside the script. It’s complete, in English, and already includes the extended Rescue ISO section and ethics note.
+
+---
+
+````markdown
 # proxmox-ova-import
 
-A robust Bash script to import **OVA** appliances into **Proxmox VE**. It extracts OVF/VMDKs, imports all disks (largest as system disk), auto-detects **BIOS vs. UEFI**, selects a suitable **disk bus** (SCSI/SATA), sets **boot order**, configures **network**, and optionally boots a **Rescue ISO** for maintenance/password recovery (for systems you own/manage).
+A robust Bash script to import **OVA appliances** into **Proxmox VE**.
 
-## Features
+It extracts OVF/VMDKs, imports all disks (largest assumed as system disk), auto-detects **BIOS vs. UEFI**, selects an appropriate **disk bus** (SCSI/SATA/IDE), sets **boot order**, configures **network**, and can optionally boot from a **Rescue ISO** for maintenance or password recovery of systems you own/manage.
 
-* 🔍 OVF parsing to infer **UEFI/BIOS** and preferred **disk bus**
-* 💾 Imports **all** VMDKs (keeps layout; picks largest as system disk)
-* 🔗 Attaches disks to **virtio-scsi** (default) or **SATA/IDE**
-* 🚀 Sets **boot order** to the system disk
-* 🌐 Configures `net0` (default `virtio,bridge=vmbr0`)
-* 🛟 Optional **Rescue ISO** boot workflow for legit recovery
-* 🧰 Sensible defaults; overridable via CLI flags
+---
 
-## Requirements
+## ✨ Features
+- 🔍 OVF parsing to infer **UEFI/BIOS** and preferred **disk bus**
+- 💾 Imports **all VMDKs** (largest treated as system disk)
+- 🔗 Attaches disks via **virtio-scsi** (default) or **SATA/IDE**
+- 🚀 Sets **boot order** automatically
+- 🌐 Configures `net0` (default `virtio,bridge=vmbr0`)
+- 🛟 Optional **Rescue ISO** boot for recovery and administration
+- 🧰 CLI options for memory, CPU, NIC model, bus type, firmware overrides
 
-* Proxmox VE host shell
-* `tar`, `qm`, `qemu-img`, `awk`
-* An available **storage** (e.g., `local-lvm`, `local`, ZFS pool)
-* OVA file accessible on the host
+---
 
-## Installation
+## 📦 Requirements
+- Proxmox VE host shell access  
+- Tools: `tar`, `qm`, `qemu-img`, `awk`  
+- OVA file accessible on the Proxmox host  
+- An available Proxmox **storage** (e.g. `local-lvm`, `local`, ZFS pool)  
 
+---
+
+## 🚀 Installation
 ```bash
-curl -O https://raw.githubusercontent.com/<you>/<repo>/main/proxmox-ova-import.sh
+curl -O https://raw.githubusercontent.com/<your-user>/<your-repo>/main/proxmox-ova-import.sh
 chmod +x proxmox-ova-import.sh
-```
+````
 
-## Usage
+---
+
+## ⚙️ Usage
 
 ```bash
 ./proxmox-ova-import.sh \
@@ -38,101 +50,112 @@ chmod +x proxmox-ova-import.sh
   [--uefi | --bios seabios|ovmf] \
   [--disk-bus scsi|sata|ide] \
   [--net virtio|e1000|rtl8139] \
-  [--keep-temp]
+  [--keep-temp] \
+  [--rescue-iso storage:iso/systemrescue.iso]
 ```
 
 ### Common examples
 
-**Basic import (auto-detect firmware & bus)**
+**Basic import (auto-detect firmware & bus):**
 
 ```bash
 ./proxmox-ova-import.sh --vmid 200 --name "AppVM" --storage local-lvm --ova /root/app.ova
 ```
 
-**Force UEFI (OVMF)**
+**Force UEFI (OVMF):**
 
 ```bash
 ./proxmox-ova-import.sh --vmid 201 --name "UEFI-VM" --storage local-lvm --ova /root/app.ova --uefi
 ```
 
-**VirtualBox-style guest (SeaBIOS + SATA + e1000)**
+**VirtualBox-style guest (SeaBIOS + SATA + e1000):**
 
 ```bash
 ./proxmox-ova-import.sh --vmid 202 --name "VBox-Guest" --storage local-lvm --ova /root/app.ova \
   --bios seabios --disk-bus sata --net e1000
 ```
 
-## Optional Rescue ISO workflow
-
-If you need legitimate admin recovery/maintenance:
-
-1. Upload a rescue ISO (e.g., `systemrescue.iso`) to a Proxmox ISO storage.
-2. Attach and boot from it (use the companion script or `qm set --ide2 STORAGE:iso/... --boot order=ide2`).
-3. In the rescue shell, mount the root FS, `chroot`, and run:
-
-   ```bash
-   passwd root
-   # or: echo "root:NewPassword" | chpasswd
-   ```
-4. Remove ISO and set boot order back to the system disk.
-
-> **Note:** Only use this on systems you own or are explicitly authorized to administer.
-
-## Tips & Troubleshooting
-
-* **No bootable device**
-  Try switching bus/controller:
-
-  * `--disk-bus sata` (VirtualBox-origin images often prefer SATA)
-  * For UEFI guests: `--uefi` (adds OVMF + EFI disk)
-  * Re-check boot order: `qm set <VMID> --boot order=<bus>0` (e.g., `sata0`, `scsi0`)
-
-* **Multiple VMDKs**
-  The script imports all; the **largest** is assumed to be the system disk and attached as `*0`.
-
-* **Network unreachable**
-  Ensure your bridge (default `vmbr0`) is correct and the guest has drivers (for Windows guests you may prefer `--net e1000`).
-
-* **Windows guests**
-  If switching to VirtIO, install VirtIO drivers in the **source** VM first. Otherwise use SATA/e1000 initially.
-
-* **LVM/Encrypted root**
-  In rescue mode, run `vgchange -ay` for LVM or unlock LUKS volumes before mounting.
-
-## CLI Options (summary)
-
-* `--vmid` (required): Target Proxmox VMID
-* `--name` (required): VM name
-* `--storage` (required): Storage ID for disks (e.g., `local-lvm`)
-* `--ova` (required): Path to OVA
-* `--memory`, `--cores`, `--sockets`: Compute sizing
-* `--uefi` / `--bios`: Force firmware
-* `--disk-bus`: `scsi` (default), `sata`, or `ide`
-* `--net`: NIC model, default `virtio`
-* `--keep-temp`: Keep extracted OVF/VMDKs for debugging
-
-## Example: VulnHub “The Planets: Earth”
-
-Recommended start:
+**Import and immediately boot into a rescue ISO:**
 
 ```bash
-./proxmox-ova-import.sh \
-  --vmid 200 \
-  --name "VulnHub-Earth" \
-  --storage local-lvm \
-  --ova /root/Earth.ova \
-  --bios seabios \
-  --disk-bus sata \
-  --net e1000
+./proxmox-ova-import.sh --vmid 203 --name "Rescue-VM" --storage local-lvm --ova /root/app.ova \
+  --rescue-iso local:iso/systemrescue.iso
+qm start 203
 ```
 
-## Security & Ethics
+---
 
-This project is intended for **lawful administration** and **disaster recovery** of systems you own or are authorized to manage. Do **not** use it to bypass security on third-party systems.
+## 🛟 Rescue ISO workflow (optional)
 
-## Contributing
+If you need to perform **legitimate maintenance or recovery**:
 
-Issues and PRs are welcome. Please describe your environment (Proxmox version, storage type, guest OS) and include command output (`qm config <VMID>`).
+1. Upload a rescue ISO (e.g. `systemrescue.iso`, `ubuntu-live.iso`) into a Proxmox ISO storage.
+2. Run the script with `--rescue-iso storage:iso/filename.iso`.
+3. The VM will be configured to boot from CD (ide2).
+4. Start the VM and connect to its console.
+5. Inside the rescue system:
+
+   ```bash
+   lsblk                          # find root partition
+   mount /dev/sdXN /mnt/groot
+   mount --bind /dev /mnt/groot/dev
+   mount --bind /proc /mnt/groot/proc
+   mount --bind /sys  /mnt/groot/sys
+   chroot /mnt/groot /bin/bash
+   passwd root                    # or: echo "root:NewPass" | chpasswd
+   ```
+6. Remove ISO and reset boot order:
+
+   ```bash
+   qm set <VMID> --ide2 none,media=cdrom
+   qm set <VMID> --boot order=sata0   # or scsi0 depending on disk bus
+   qm stop <VMID>
+   qm start <VMID>
+   ```
+
+---
+
+## 🛠 Troubleshooting
+
+* **No bootable device**
+
+  * Try `--disk-bus sata` (VirtualBox images often expect SATA).
+  * Use `--uefi` if the guest requires UEFI.
+  * Re-check boot order: `qm set <VMID> --boot order=sata0` (or scsi0/ide0).
+
+* **Multiple VMDKs**
+  The script imports all VMDKs. The largest is assumed as the boot/system disk.
+
+* **Windows guests**
+  If you want to use VirtIO, install VirtIO drivers in the original VM before migration. Otherwise, use SATA/e1000 initially.
+
+* **Encrypted or LVM root**
+  Use rescue mode and run `vgchange -ay` for LVM or unlock LUKS before mounting.
+
+---
+
+## 🔑 Security & Ethics
+
+This project is intended for **lawful administration** and **disaster recovery** of systems you **own or are authorized to manage**.
+Do **not** use it to bypass security on third-party systems.
+
+---
+
+## 📄 License
+
+MIT License — see `LICENSE` file.
+
+---
+
+## 🤝 Contributing
+
+Issues and PRs are welcome! Please include:
+
+* Proxmox VE version
+* Guest OS type
+* Storage backend
+* Output of `qm config <VMID>` if relevant
+
 
 ## License
 
