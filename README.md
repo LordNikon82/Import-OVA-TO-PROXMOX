@@ -1,8 +1,3 @@
-Got it 👍 — here’s a **full drop-in replacement README.md** you can use directly in your GitHub repo alongside the script. It’s complete, in English, and already includes the extended Rescue ISO section and ethics note.
-
----
-
-````markdown
 # proxmox-ova-import
 
 A robust Bash script to import **OVA appliances** into **Proxmox VE**.
