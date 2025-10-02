@@ -152,6 +152,3 @@ Issues and PRs are welcome! Please include:
 * Output of `qm config <VMID>` if relevant
 
 
-## License
-
-MIT 
